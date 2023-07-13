@@ -4,10 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -21,11 +21,10 @@ type DBSecret struct {
 	Password string
 }
 
-var REGION string
-var SECRET_NAME string
-var DATABASE_HOST string
-var DATABASE_PORT string
-var DATABASE_SCHEMA string
+var REGION *string
+var SECRET_NAME *string
+var DATABASE_HOST *string
+var DATABASE_SCHEMA *string
 var SAVED_DB *sql.DB
 
 func main() {
@@ -37,11 +36,12 @@ func main() {
 
 
 func getEnv() {
-	REGION = os.Getenv("REGION")
-	SECRET_NAME = os.Getenv("SECRET_NAME")
-	DATABASE_HOST = os.Getenv("DATABASE_HOST")
-	DATABASE_PORT = os.Getenv("DATABASE_PORT")
-	DATABASE_SCHEMA = os.Getenv("DATABASE_SCHEMA")
+	REGION = flag.String("region", "ap-northeast-2", "Secrets manager region")
+	SECRET_NAME = flag.String("secret", "", "Secret Name")
+	DATABASE_HOST = flag.String("db_host", "", "Database Host URI")
+	DATABASE_SCHEMA = flag.String("db_schema", "", "Database Schema")
+
+	flag.Parse()
 }
 
 func fn(w http.ResponseWriter, req *http.Request) {
@@ -61,7 +61,7 @@ func fn(w http.ResponseWriter, req *http.Request) {
 }
 
 func getDBSecret() DBSecret {
-	config, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion(REGION))
+	config, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion(*REGION))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -69,7 +69,7 @@ func getDBSecret() DBSecret {
 	svc := secretsmanager.NewFromConfig(config)
 
 	input := &secretsmanager.GetSecretValueInput{
-		SecretId:     aws.String(SECRET_NAME),
+		SecretId:     aws.String(*SECRET_NAME),
 		VersionStage: aws.String("AWSCURRENT"),
 	}
 
@@ -88,12 +88,11 @@ func getDB() *sql.DB {
 	if (SAVED_DB == nil || SAVED_DB.Ping() != nil) {
 		secret := getDBSecret()
 
-		db, err := sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s:%s)/%s",
+		db, err := sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s)/%s",
 			secret.Username,
 			secret.Password,
-			DATABASE_HOST,
-			DATABASE_PORT,
-			DATABASE_SCHEMA,
+			*DATABASE_HOST,
+			*DATABASE_SCHEMA,
 		))
 		
 		if err != nil {
