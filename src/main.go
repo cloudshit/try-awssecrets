@@ -48,7 +48,20 @@ func fn(w http.ResponseWriter, req *http.Request) {
 	switch req.Method {
 		case "GET":
 			db := getDB()
-			fmt.Fprint(w, db.Stats())
+			rows, err := db.Query("VERSION()")
+
+			if err != nil {
+				fmt.Fprint(w, err.Error())
+				return
+			}
+			
+			for rows.Next() {
+				var version string
+				if err := rows.Scan(&version); err != nil {
+					fmt.Fprint(w, version)
+				}
+			}
+
 			break
 	}
 }
