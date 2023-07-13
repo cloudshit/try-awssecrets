@@ -48,7 +48,7 @@ func fn(w http.ResponseWriter, req *http.Request) {
 	switch req.Method {
 		case "GET":
 			db := getDB()
-			rows, err := db.Query("VERSION()")
+			rows, err := db.Query("select VERSION()")
 
 			if err != nil {
 				fmt.Fprint(w, err.Error())
